@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Escape - Desvie dos Obstáculos!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #1a1a2e, #16213e);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background: linear-gradient(to bottom, #87CEEB, #4A90D9);
+            border: 4px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        /* Nuvens de fundo */
+        .cloud {
+            position: absolute;
+            background: rgba(255,255,255,0.8);
+            border-radius: 50px;
+            animation: moveCloud linear infinite;
+        }
+
+        @keyframes moveCloud {
+            from { transform: translateY(-100px); }
+            to { transform: translateY(700px); }
+        }
+
+        /* Avião */
+        #plane {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            left: 175px;
+            top: 480px;
+            font-size: 40px;
+            transition: left 0.1s ease-out;
+            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));
+            z-index: 10;
+        }
+
+        /* Obstáculos */
+        .obstacle {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            font-size: 45px;
+            text-align: center;
+            z-index: 5;
+        }
+
+        /* Power-ups */
+        .powerup {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            font-size: 25px;
+            z-index: 5;
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+
+        /* Tela inicial e Game Over */
+        #startScreen, #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            color: white;
+            text-align: center;
+        }
+
+        #gameOverScreen {
+            display: none;
+        }
+
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: #FFD700;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #FF6B6B;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            margin-bottom: 30px;
+            color: #ccc;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: linear-gradient(to bottom, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+        }
+
+        #finalScore {
+            font-size: 48px;
+            color: #FFD700;
+            margin: 20px 0;
+        }
+
+        #highScore {
+            font-size: 18px;
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .plane-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        /* Efeito de explosão */
+        .explosion {
+            position: absolute;
+            font-size: 60px;
+            z-index: 150;
+            animation: explode 0.5s ease-out forwards;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        /* Mobile controls */
+        #mobileControls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 100;
+            display: none;
+        }
+
+        .mobileBtn {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.3);
+            border: 3px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            font-size: 30px;
+            color: white;
+            cursor: pointer;
+        }
+
+        @media (max-width: 500px) {
+            #gameContainer {
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                border: none;
+            }
+            
+            #mobileControls {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- HUD -->
+        <div id="hud">
+            <span>⭐ <span id="score">0</span></span>
+            <span>❤️ <span id="lives">3</span></span>
+        </div>
+
+        <!-- Avião -->
+        <div id="plane">✈️</div>
+
+        <!-- Controles Mobile -->
+        <div id="mobileControls">
+            <button class="mobileBtn" id="leftBtn">⬅️</button>
+            <button class="mobileBtn" id="rightBtn">➡️</button>
+        </div>
+
+        <!-- Tela Inicial -->
+        <div id="startScreen">
+            <div class="plane-icon">✈️</div>
+            <h1>SKY ESCAPE</h1>
+            <p class="subtitle">Desvie dos obstáculos e sobreviva!</p>
+            <button class="btn" id="startBtn">🎮 JOGAR</button>
+            <div class="controls">
+                <p>⌨️ Setas ← → ou A/D para mover</p>
+                <p>📱 Botões na tela no celular</p>
+            </div>
+        </div>
+
+        <!-- Tela Game Over -->
+        <div id="gameOverScreen">
+            <h2>💥 GAME OVER</h2>
+            <p>Sua pontuação:</p>
+            <div id="finalScore">0</div>
+            <div id="highScore">🏆 Recorde: 0</div>
+            <button class="btn" id="restartBtn">🔄 JOGAR NOVAMENTE</button>
+        </div>
+    </div>
+
+    <script>
+        // ===== ELEMENTOS DO DOM =====
+        const gameContainer = document.getElementById('gameContainer');
+        const plane = document.getElementById('plane');
+        const scoreDisplay = document.getElementById('score');
+        const livesDisplay = document.getElementById('lives');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const highScoreDisplay = document.getElementById('highScore');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+
+        // ===== VARIÁVEIS DO JOGO =====
+        let planeX = 175;
+        let score = 0;
+        let lives = 3;
+        let highScore = localStorage.getItem('skyEscapeHighScore') || 0;
+        let gameRunning = false;
+        let gameSpeed = 3;
+        let spawnRate = 1500;
+        let obstacles = [];
+        let powerups = [];
+        let keys = {};
+        let gameLoop;
+        let spawnLoop;
+        let difficultyLoop;
+
+        // ===== TIPOS DE OBSTÁCULOS =====
+        const obstacleTypes = ['🚁', '🦅', '☁️', '🎈', '🪁', '⛈️', '🛸'];
+        const powerupTypes = ['⭐', '💎', '❤️'];
+
+        // ===== INICIALIZAÇÃO =====
+        function init() {
+            highScoreDisplay.textContent = `🏆 Recorde: ${highScore}`;
+            createClouds();
+        }
+
+        // ===== CRIAR NUVENS DE FUNDO =====
+        function createClouds() {
+            for (let i = 0; i < 5; i++) {
+                const cloud = document.createElement('div');
+                cloud.className = 'cloud';
+                cloud.style.width = Math.random() * 100 + 50 + 'px';
+                cloud.style.height = '30px';
+                cloud.style.left = Math.random() * 350 + 'px';
+                cloud.style.top = Math.random() * 600 + 'px';
+                cloud.style.animationDuration = Math.random() * 10 + 10 + 's';
+                gameContainer.appendChild(cloud);
+            }
+        }
+
+        // ===== INICIAR JOGO =====
+        function startGame() {
+            // Reset
+            planeX = 175;
+            score = 0;
+            lives = 3;
+            gameSpeed = 3;
+            spawnRate = 1500;
+            obstacles = [];
+            powerups = [];
+
+            // Limpar obstáculos anteriores
+            document.querySelectorAll('.obstacle, .powerup, .explosion').forEach(el => el.remove());
+
+            // Atualizar UI
+            scoreDisplay.textContent = score;
+            livesDisplay.textContent = lives;
+            plane.style.left = planeX + 'px';
+
+            // Esconder telas
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+
+            // Iniciar
+            gameRunning = true;
+            gameLoop = requestAnimationFrame(update);
+            spawnLoop = setInterval(spawnObstacle, spawnRate);
+            difficultyLoop = setInterval(increaseDifficulty, 5000);
+        }
+
+        // ===== GAME OVER =====
+        function gameOver() {
+            gameRunning = false;
+            cancelAnimationFrame(gameLoop);
+            clearInterval(spawnLoop);
+            clearInterval(difficultyLoop);
+
+            // Atualizar recorde
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('skyEscapeHighScore', highScore);
+            }
+
+            // Mostrar tela
+            finalScoreDisplay.textContent = score;
+            highScoreDisplay.textContent = `🏆 Recorde: ${highScore}`;
+            gameOverScreen.style.display = 'flex';
+        }
+
+        // ===== SPAWN DE OBSTÁCULOS =====
+        function spawnObstacle() {
+            if (!gameRunning) return;
+
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            obstacle.textContent = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+            obstacle.style.left = Math.random() * 340 + 'px';
+            obstacle.style.top = '-60px';
+            gameContainer.appendChild(obstacle);
+            obstacles.push({
+                element: obstacle,
+                x: parseFloat(obstacle.style.left),
+                y: -60
+            });
+
+            // Chance de spawn de power-up
+            if (Math.random() < 0.2) {
+                spawnPowerup();
+            }
+        }
+
+        // ===== SPAWN DE POWER-UPS =====
+        function spawnPowerup() {
+            const powerup = document.createElement('div');
+            powerup.className = 'powerup';
+            const type = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+            powerup.textContent = type;
+            powerup.dataset.type = type;
+            powerup.style.left = Math.random() * 360 + 'px';
+            powerup.style.top = '-30px';
+            gameContainer.appendChild(powerup);
+            powerups.push({
+                element: powerup,
+                x: parseFloat(powerup.style.left),
+                y: -30,
+                type: type
+            });
+        }
+
+        // ===== AUMENTAR DIFICULDADE =====
+        function increaseDifficulty() {
+            if (!gameRunning) return;
+            
+            gameSpeed += 0.3;
+            
+            if (spawnRate > 600) {
+                clearInterval(spawnLoop);
+                spawnRate -= 100;
+                spawnLoop = setInterval(spawnObstacle, spawnRate);
+            }
+        }
+
+        // ===== LOOP PRINCIPAL =====
+        function update() {
+            if (!gameRunning) return;
+
+            // Movimento do avião
+            if (keys['ArrowLeft'] || keys['KeyA']) {
+                planeX -= 6;
+            }
+            if (keys['ArrowRight'] || keys['KeyD']) {
+                planeX += 6;
+            }
+
+            // Limites
+            planeX = Math.max(0, Math.min(350, planeX));
+            plane.style.left = planeX + 'px';
+
+            // Atualizar obstáculos
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.y += gameSpeed;
+                obs.element.style.top = obs.y + 'px';
+
+                // Colisão
+                if (checkCollision(planeX, 480, 50, 50, obs.x, obs.y, 60, 60)) {
+                    createExplosion(obs.x, obs.y);
+                    obs.element.remove();
+                    obstacles.splice(i, 1);
+                    lives--;
+                    livesDisplay.textContent = lives;
+
+                    if (lives <= 0) {
+                        gameOver();
+                        return;
+                    }
+                    continue;
+                }
+
+                // Remover se saiu da tela
+                if (obs.y > 600) {
+                    obs.element.remove();
+                    obstacles.splice(i, 1);
+                    score += 10;
+                    scoreDisplay.textContent = score;
+                }
+            }
+
+            // Atualizar power-ups
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const pwr = powerups[i];
+                pwr.y += gameSpeed;
+                pwr.element.style.top = pwr.y + 'px';
+
+                // Coleta
+                if (checkCollision(planeX, 480, 50, 50, pwr.x, pwr.y, 30, 30)) {
+                    pwr.element.remove();
+                    
+                    if (pwr.type === '⭐') {
+                        score += 50;
+                    } else if (pwr.type === '💎') {
+                        score += 100;
+                    } else if (pwr.type === '❤️') {
+                        lives = Math.min(5, lives + 1);
+                        livesDisplay.textContent = lives;
+                    }
+                    
+                    scoreDisplay.textContent = score;
+                    powerups.splice(i, 1);
+                    continue;
+                }
+
+                // Remover se saiu
+                if (pwr.y > 600) {
+                    pwr.element.remove();
+                    powerups.splice(i, 1);
+                }
+            }
+
+            gameLoop = requestAnimationFrame(update);
+        }
+
+        // ===== CHECAR COLISÃO =====
+        function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
+            return x1 < x2 + w2 &&
+                   x1 + w1 > x2 &&
+                   y1 < y2 + h2 &&
+                   y1 + h1 > y2;
+        }
+
+        // ===== CRIAR EXPLOSÃO =====
+        function createExplosion(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.textContent = '💥';
+            explosion.style.left = x + 'px';
+            explosion.style.top = y + 'px';
+            gameContainer.appendChild(explosion);
+            
+            setTimeout(() => explosion.remove(), 500);
+        }
+
+        // ===== CONTROLES =====
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Mobile
+        leftBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys['ArrowLeft'] = true;
+        });
+        leftBtn.addEventListener('touchend', () => {
+            keys['ArrowLeft'] = false;
+        });
+        rightBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys['ArrowRight'] = true;
+        });
+        rightBtn.addEventListener('touchend', () => {
+            keys['ArrowRight'] = false;
+        });
+
+        // Botões
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        // Iniciar
+        init();
+    </script>
+</body>
+</html>
